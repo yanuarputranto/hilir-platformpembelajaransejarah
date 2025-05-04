@@ -57,14 +57,17 @@
                         <li class="nav-item"><a class="nav-link" href="{{ route('guru.penilaian') }}">Lihat Nilai</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ route('guru.chatbot') }}">Chatbot AI</a></li>
                     </ul>
-                    <ul class="nav navbar-nav navbar-right">
-                        <li>
-                            <form action="{{ route('logout') }}" method="POST">
-                                @csrf
-                                <button type="submit" class="hover-btn-new log orange"><span>Logout</span></button>
-                            </form>
-                        </li>
                     </ul>
+                    <ul class="navbar-nav">
+    <li>
+        <a href="#" class="hover-btn-new log orange" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+            <span>Logout</span>
+        </a>
+        <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+            @csrf
+        </form>
+    </li>
+</ul>
                 </div>
             </div>
         </nav>

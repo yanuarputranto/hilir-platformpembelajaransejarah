@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Models\Guru;
 use App\Models\Siswa;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\Admin\KelolaRegistrasiController;
+use App\Http\Controllers\Admin\AdminKelolaLoginController;
+use App\Http\Controllers\Admin\AdminKelolaSistemController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -31,11 +34,8 @@ Route::get('/penilaian', function () {
 
 
 // Login Routes
-
-
 Route::get('/daftar', [App\Http\Controllers\Auth\RegisterController::class, 'showRegistrationForm'])->name('daftar');
 Route::post('/daftar', [App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('daftar.submit');
-
 Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->name('login.submit');
 Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
@@ -126,23 +126,101 @@ Route::get('/chatbot', [ChatbotController::class, 'index'])
 ->name('siswa.chatbot');
 });
 
+// Route untuk halaman login
 Route::get('/admin/login', function () {
+    if (session('admin_logged_in')) {
+        return redirect()->route('admin.dashboard');
+    }
     return view('admin.login');
 })->name('admin.login');
 
-    Route::get('/admin/dashboard', function () {
+// Route untuk proses login
+Route::post('/admin/login', function (Illuminate\Http\Request $request) {
+    $validCredentials = [
+        'email' => 'admin@sejarah.com',
+        'password' => 'admin123'
+    ];
+
+    if ($request->email === $validCredentials['email'] && 
+        $request->password === $validCredentials['password']) {
+        session(['admin_logged_in' => true]);
+        return redirect()->route('admin.dashboard');
+    }
+
+    return back()->with('error', 'Email atau password salah!');
+})->name('admin.login.submit');
+
+// Route untuk logout
+Route::post('/admin/logout', function () {
+    session()->forget('admin_logged_in');
+    return redirect()->route('admin.login')->with('success', 'Anda telah berhasil logout');
+})->name('admin.logout');
+
+// Semua route admin yang diproteksi
+Route::middleware('web')->group(function () {
+    // Fungsi untuk mengecek login
+    $checkAdmin = function() {
+        if (!session('admin_logged_in')) {
+            return redirect()->route('admin.login')->with('error', 'Silakan login terlebih dahulu');
+        }
+    };
+
+    // Dashboard
+    Route::get('/admin/dashboard', function () use ($checkAdmin) {
+        if ($redirect = $checkAdmin()) return $redirect;
         return view('admin.dashboard');
     })->name('admin.dashboard');
 
-    Route::get('/admin/kelolalogin', function () {
-        return view('admin.kelolalogin');
-    })->name('admin.kelolalogin');
+    // Kelola Registrasi
+    Route::prefix('/admin/kelolaregistrasi')->group(function () use ($checkAdmin) {
+        Route::get('/', function () use ($checkAdmin) {
+            if ($redirect = $checkAdmin()) return $redirect;
+            return app(App\Http\Controllers\Admin\KelolaRegistrasiController::class)->index();
+        })->name('admin.kelolaregistrasi');
+        
+        // Untuk siswa
+        Route::put('/siswa/{id}', function ($id) use ($checkAdmin) {
+            if ($redirect = $checkAdmin()) return $redirect;
+            return app(App\Http\Controllers\Admin\KelolaRegistrasiController::class)->updateSiswa($id);
+        })->name('admin.siswa.update');
+        
+        Route::delete('/siswa/{id}', function ($id) use ($checkAdmin) {
+            if ($redirect = $checkAdmin()) return $redirect;
+            return app(App\Http\Controllers\Admin\KelolaRegistrasiController::class)->destroySiswa($id);
+        })->name('admin.siswa.destroy');
 
-    Route::get('/admin/kelolaregistrasi', function () {
-        return view('admin.kelolaregistrasi');
-    })->name('admin.kelolaregistrasi');
+        // Untuk guru
+        Route::put('/guru/{id}', function ($id) use ($checkAdmin) {
+            if ($redirect = $checkAdmin()) return $redirect;
+            return app(App\Http\Controllers\Admin\KelolaRegistrasiController::class)->updateGuru($id);
+        })->name('admin.guru.update');
+        
+        Route::delete('/guru/{id}', function ($id) use ($checkAdmin) {
+            if ($redirect = $checkAdmin()) return $redirect;
+            return app(App\Http\Controllers\Admin\KelolaRegistrasiController::class)->destroyGuru($id);
+        })->name('admin.guru.destroy');
+    });
 
-    Route::get('/admin/kelolasistem', function () {
-        return view('admin.kelolasistem');
+    // Kelola Sistem
+    Route::get('/admin/kelolasistem', function () use ($checkAdmin) {
+        if ($redirect = $checkAdmin()) return $redirect;
+        return app(App\Http\Controllers\Admin\AdminKelolaSistemController::class)->index();
     })->name('admin.kelolasistem');
+
+    // Kelola Login
+    Route::get('/admin/kelolalogin', function () use ($checkAdmin) {
+        if ($redirect = $checkAdmin()) return $redirect;
+        return app(App\Http\Controllers\Admin\AdminKelolaLoginController::class)->index();
+    })->name('admin.kelolalogin');
+    
+    Route::post('/admin/reset-password/{type}/{id}', function ($type, $id) use ($checkAdmin) {
+        if ($redirect = $checkAdmin()) return $redirect;
+        return app(App\Http\Controllers\Admin\AdminKelolaLoginController::class)->resetPassword($type, $id);
+    })->name('admin.resetpassword');
+    
+    Route::post('/admin/toggle-status/{type}/{id}', function ($type, $id) use ($checkAdmin) {
+        if ($redirect = $checkAdmin()) return $redirect;
+        return app(App\Http\Controllers\Admin\AdminKelolaLoginController::class)->toggleStatus($type, $id);
+    })->name('admin.togglestatus');
+});
 
